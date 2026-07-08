@@ -93,6 +93,8 @@ export interface CompactionResult<T = unknown> {
 	firstKeptEntryId: string;
 	/** Estimated context tokens before compaction. */
 	tokensBefore: number;
+	/** Retained recent messages stored directly on the compaction entry. */
+	retainedTail: AgentMessage[];
 	/** Optional implementation-specific details stored with the compaction entry. */
 	details?: T;
 }
@@ -529,6 +531,8 @@ export interface CompactionPreparation {
 	messagesToSummarize: AgentMessage[];
 	/** Prefix messages summarized separately when compaction splits a turn. */
 	turnPrefixMessages: AgentMessage[];
+	/** Recent messages retained after compaction and stored on the compaction entry. */
+	retainedTail: AgentMessage[];
 	/** Whether compaction splits a turn. */
 	isSplitTurn: boolean;
 	/** Estimated context tokens before compaction. */
@@ -590,6 +594,11 @@ export function prepareCompaction(
 			if (msg) turnPrefixMessages.push(msg);
 		}
 	}
+	const retainedTail: AgentMessage[] = [];
+	for (let i = cutPoint.firstKeptEntryIndex; i < boundaryEnd; i++) {
+		const msg = getMessageFromEntryForCompaction(pathEntries[i]);
+		if (msg) retainedTail.push(msg);
+	}
 	const fileOps = extractFileOperations(messagesToSummarize, pathEntries, prevCompactionIndex);
 	if (cutPoint.isSplitTurn) {
 		for (const msg of turnPrefixMessages) {
@@ -601,6 +610,7 @@ export function prepareCompaction(
 		firstKeptEntryId,
 		messagesToSummarize,
 		turnPrefixMessages,
+		retainedTail,
 		isSplitTurn: cutPoint.isSplitTurn,
 		tokensBefore,
 		previousSummary,
@@ -639,6 +649,7 @@ export async function compact(
 		firstKeptEntryId,
 		messagesToSummarize,
 		turnPrefixMessages,
+		retainedTail,
 		isSplitTurn,
 		tokensBefore,
 		previousSummary,
@@ -699,6 +710,7 @@ export async function compact(
 		summary,
 		firstKeptEntryId,
 		tokensBefore,
+		retainedTail,
 		details: { readFiles, modifiedFiles } as CompactionDetails,
 	});
 }

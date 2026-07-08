@@ -400,6 +400,7 @@ export interface CompactionEntry<T = unknown> extends SessionTreeEntryBase {
 	summary: string;
 	firstKeptEntryId: string;
 	tokensBefore: number;
+	retainedTail?: AgentMessage[];
 	details?: T;
 	fromHook?: boolean;
 }
@@ -808,6 +809,7 @@ export interface CompactResult {
 	summary: string;
 	firstKeptEntryId: string;
 	tokensBefore: number;
+	retainedTail?: AgentMessage[];
 	details?: unknown;
 }
 
@@ -827,6 +829,7 @@ export interface CompactionPreparation {
 	firstKeptEntryId: string;
 	messagesToSummarize: AgentMessage[];
 	turnPrefixMessages: AgentMessage[];
+	retainedTail: AgentMessage[];
 	isSplitTurn: boolean;
 	tokensBefore: number;
 	previousSummary?: string;

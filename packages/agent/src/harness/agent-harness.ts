@@ -683,9 +683,13 @@ export class AgentHarness<
 		}
 	}
 
-	async compact(
-		customInstructions?: string,
-	): Promise<{ summary: string; firstKeptEntryId: string; tokensBefore: number; details?: unknown }> {
+	async compact(customInstructions?: string): Promise<{
+		summary: string;
+		firstKeptEntryId: string;
+		tokensBefore: number;
+		retainedTail?: AgentMessage[];
+		details?: unknown;
+	}> {
 		if (this.phase !== "idle") throw new AgentHarnessError("busy", "compact() requires idle harness");
 		this.phase = "compaction";
 		try {
@@ -716,6 +720,7 @@ export class AgentHarness<
 				result.tokensBefore,
 				result.details,
 				provided !== undefined,
+				result.retainedTail,
 			);
 			const entry = await this.session.getEntry(entryId);
 			if (entry?.type === "compaction") {
