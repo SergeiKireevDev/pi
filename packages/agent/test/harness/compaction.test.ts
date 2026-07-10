@@ -679,7 +679,7 @@ describe("harness compaction", () => {
 		const result = getOrThrow(await compact(preparation!, models, model));
 		expect(result.summary.length).toBeGreaterThan(0);
 		expect(result.firstKeptEntryId).toBeTruthy();
-		expect(result.retainedTail.length).toBeGreaterThan(0);
+		expect(result.retainedTail?.length).toBeGreaterThan(0);
 		expect(result.details).toBeDefined();
 	});
 });

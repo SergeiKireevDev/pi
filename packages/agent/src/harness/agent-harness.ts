@@ -685,7 +685,7 @@ export class AgentHarness<
 
 	async compact(customInstructions?: string): Promise<{
 		summary: string;
-		firstKeptEntryId: string;
+		firstKeptEntryId?: string;
 		tokensBefore: number;
 		retainedTail?: AgentMessage[];
 		details?: unknown;
