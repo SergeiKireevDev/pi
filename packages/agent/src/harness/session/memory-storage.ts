@@ -169,4 +169,6 @@ export class InMemorySessionStorage<TMetadata extends SessionMetadata = SessionM
 		const end = options?.limit === undefined ? undefined : start + options.limit;
 		return this.entries.slice(start, end);
 	}
+
+	async close(): Promise<void> {}
 }

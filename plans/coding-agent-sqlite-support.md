@@ -53,7 +53,7 @@ Do not make SQLite the default in this plan.
 - After changing package exports or dependencies, regenerate and check the
   coding-agent shrinkwrap and install lock.
 
-## [ ] 1. Complete the Core Session Lifecycle Contract
+## [x] 1. Complete the Core Session Lifecycle Contract
 
 - Add an optional close/cleanup capability to the shared session storage
   contract and expose an idempotent `Session.close()` method.

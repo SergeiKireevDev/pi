@@ -1,5 +1,5 @@
 import type { LeafEntry, SessionEntryCursorOptions, SessionStorage, SessionTreeEntry } from "../../../types.ts";
-import { SessionError } from "../../../types.ts";
+import { SessionError, toError } from "../../../types.ts";
 import { uuidv7 } from "../../uuid.ts";
 import type { SqliteDatabase, SqliteSessionMetadata } from "../types.ts";
 import { getMaterializedBranchPathOrCompaction } from "./branch-entries.ts";
@@ -116,6 +116,7 @@ export class SqliteSessionStorage implements SessionStorage<SqliteSessionMetadat
 	private currentLeafId: string | null;
 	private activeBranchId: string | null;
 	private materializedState: SessionMaterializedState;
+	private closePromise: Promise<void> | undefined;
 
 	private async getPathToRootOrCompactionEntries(leafId: string | null): Promise<SessionTreeEntry[]> {
 		if (leafId === null) return [];
@@ -287,6 +288,9 @@ export class SqliteSessionStorage implements SessionStorage<SqliteSessionMetadat
 
 	async appendEntry(entry: SessionTreeEntry): Promise<void> {
 		const encoded = encodeEntry(entry);
+		const previousById = new Map(this.byId);
+		const previousCurrentLeafId = this.currentLeafId;
+		const previousActiveBranchId = this.activeBranchId;
 		const previousMaterializedState: SessionMaterializedState = {
 			...this.materializedState,
 			labelsById: new Map(this.materializedState.labelsById),
@@ -337,10 +341,13 @@ export class SqliteSessionStorage implements SessionStorage<SqliteSessionMetadat
 				}
 			});
 		} catch (error) {
+			this.byId = previousById;
+			this.currentLeafId = previousCurrentLeafId;
+			this.activeBranchId = previousActiveBranchId;
 			this.materializedState = previousMaterializedState;
 			this.labelsById = previousMaterializedState.labelsById;
 			if (error instanceof SessionError) throw error;
-			throw new SessionError("storage", `Failed to append SQLite session entry ${entry.id}`);
+			throw new SessionError("storage", `Failed to append SQLite session entry ${entry.id}`, toError(error));
 		}
 	}
 
@@ -428,7 +435,13 @@ export class SqliteSessionStorage implements SessionStorage<SqliteSessionMetadat
 		return entries;
 	}
 
-	async cleanup(): Promise<void> {
-		await this.db.close();
+	close(): Promise<void> {
+		this.closePromise ??= this.db.close();
+		return this.closePromise;
+	}
+
+	/** @deprecated Use close(). */
+	cleanup(): Promise<void> {
+		return this.close();
 	}
 }

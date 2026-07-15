@@ -239,4 +239,49 @@ describe("SQLite migrations", () => {
 			await db.close();
 		}
 	});
+
+	it("restores cached state and preserves the cause after a failed append", async () => {
+		const root = createTempDir();
+		const databasePath = join(root, "sessions.sqlite");
+		const env = new SqliteNodeExecutionEnv({ cwd: root });
+		const repo = new SqliteSessionRepo({ env, databasePath });
+		const session = await repo.create({ cwd: root, id: "session-1" });
+		const rootId = await session.appendMessage(createUserMessage("root"));
+
+		const setupDb = await env.openSqlite(databasePath);
+		try {
+			await setupDb.exec(`
+				CREATE TRIGGER fail_active_leaf
+				BEFORE UPDATE OF active_leaf_id ON sessions
+				BEGIN
+					SELECT RAISE(ABORT, 'forced append failure');
+				END;
+			`);
+		} finally {
+			await setupDb.close();
+		}
+
+		let failure: unknown;
+		try {
+			await session.appendMessage(createAssistantMessage("must roll back"));
+		} catch (error) {
+			failure = error;
+		}
+		expect(failure).toMatchObject({ code: "storage", cause: expect.any(Error) });
+		expect(await session.getLeafId()).toBe(rootId);
+		expect((await session.getEntries()).map((entry) => entry.id)).toEqual([rootId]);
+		expect(await session.getSessionStats()).toMatchObject({ messageCount: 1, totalTokens: 0 });
+
+		const repairDb = await env.openSqlite(databasePath);
+		try {
+			await repairDb.exec("DROP TRIGGER fail_active_leaf");
+		} finally {
+			await repairDb.close();
+		}
+
+		await session.appendMessage(createAssistantMessage("succeeds"));
+		expect((await session.buildContext()).messages.map((message) => message.role)).toEqual(["user", "assistant"]);
+		await session.close();
+		await session.close();
+	});
 });

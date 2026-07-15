@@ -1,10 +1,12 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import { NodeExecutionEnv } from "../../src/harness/env/nodejs.ts";
 import { JsonlSessionStorage } from "../../src/harness/session/jsonl-storage.ts";
 import { InMemorySessionStorage } from "../../src/harness/session/memory-storage.ts";
 import { type ContextEntryTransform, Session } from "../../src/harness/session/session.ts";
+import { SqliteNodeExecutionEnv } from "../../src/harness/session/sqlite/env/node.ts";
+import { SqliteSessionRepo } from "../../src/harness/session/sqlite/repo.ts";
 import type { SessionStorage } from "../../src/harness/types.ts";
 import { createAssistantMessage, createTempDir, createUserMessage, getLatestTempDir } from "./session-test-utils.ts";
 
@@ -18,10 +20,21 @@ function getTextData(data: unknown): string {
 
 async function runSessionSuite(
 	name: string,
-	createStorage: () => SessionStorage | Promise<SessionStorage>,
+	createStorageImpl: () => SessionStorage | Promise<SessionStorage>,
 	inspect?: () => void,
 ) {
 	describe(name, () => {
+		const openedStorages: SessionStorage[] = [];
+		const createStorage = async (): Promise<SessionStorage> => {
+			const storage = await createStorageImpl();
+			openedStorages.push(storage);
+			return storage;
+		};
+
+		afterEach(async () => {
+			await Promise.all(openedStorages.splice(0).map((storage) => storage.close?.()));
+		});
+
 		it("appends messages and builds context in order", async () => {
 			const session = new Session(await createStorage());
 			await session.appendMessage(createUserMessage("one"));
@@ -30,14 +43,16 @@ async function runSessionSuite(
 			expect(context.messages.map((message) => message.role)).toEqual(["user", "assistant"]);
 		});
 
-		it("tracks model and thinking level changes", async () => {
+		it("tracks model, thinking level, and active tool changes", async () => {
 			const session = new Session(await createStorage());
 			await session.appendMessage(createUserMessage("one"));
 			await session.appendModelChange("openai", "gpt-4.1");
 			await session.appendThinkingLevelChange("high");
+			await session.appendActiveToolsChange(["read", "bash"]);
 			const context = await session.buildContext();
 			expect(context.thinkingLevel).toBe("high");
 			expect(context.model).toEqual({ provider: "openai", modelId: "gpt-4.1" });
+			expect(context.activeToolNames).toEqual(["read", "bash"]);
 		});
 
 		it("supports branching by moving the leaf and appending a new branch", async () => {
@@ -166,6 +181,20 @@ async function runSessionSuite(
 			await expect(session.appendLabel("missing", "checkpoint")).rejects.toThrow("Entry missing not found");
 		});
 
+		it("closes storage idempotently", async () => {
+			const storage = await createStorage();
+			const closeStorage = storage.close?.bind(storage);
+			let closeCalls = 0;
+			storage.close = async () => {
+				closeCalls += 1;
+				await closeStorage?.();
+			};
+			const session = new Session(storage);
+			await session.close();
+			await session.close();
+			expect(closeCalls).toBe(1);
+		});
+
 		it("persists leaf changes and appended entries via storage", async () => {
 			const storage = await createStorage();
 			const session = new Session(storage);
@@ -186,6 +215,13 @@ async function runSessionSuite(
 }
 
 runSessionSuite("Session with in-memory storage", () => new InMemorySessionStorage());
+
+runSessionSuite("Session with SQLite storage", async () => {
+	const dir = createTempDir();
+	const env = new SqliteNodeExecutionEnv({ cwd: dir });
+	const repo = new SqliteSessionRepo({ env, databasePath: join(dir, "sessions.sqlite") });
+	return (await repo.create({ cwd: dir, id: "session-1" })).getStorage();
+});
 
 runSessionSuite(
 	"Session with JSONL storage",

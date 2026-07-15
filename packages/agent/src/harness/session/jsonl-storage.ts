@@ -356,4 +356,6 @@ export class JsonlSessionStorage implements SessionStorage<JsonlSessionMetadata>
 		const end = options?.limit === undefined ? undefined : start + options.limit;
 		return this.entries.slice(start, end);
 	}
+
+	async close(): Promise<void> {}
 }
