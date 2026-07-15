@@ -447,6 +447,11 @@ export interface JsonlSessionMetadata extends SessionMetadata {
 	metadata?: Record<string, unknown>;
 }
 
+export interface SessionEntryCursorOptions {
+	afterEntrySeq?: number;
+	limit?: number;
+}
+
 export interface SessionStorage<TMetadata extends SessionMetadata = SessionMetadata> {
 	getMetadata(): Promise<TMetadata>;
 	getLeafId(): Promise<string | null>;
@@ -459,9 +464,10 @@ export interface SessionStorage<TMetadata extends SessionMetadata = SessionMetad
 		type: TType,
 	): Promise<Array<Extract<SessionTreeEntry, { type: TType }>>>;
 	getLabel(id: string): Promise<string | undefined>;
+	getSessionName(): Promise<string | undefined>;
 	getSessionStats(): Promise<SessionStats>;
 	getPathToRootOrCompaction(leafId: string | null): Promise<SessionTreeEntry[]>;
-	getEntries(): Promise<SessionTreeEntry[]>;
+	getEntries(options?: SessionEntryCursorOptions): Promise<SessionTreeEntry[]>;
 }
 
 export type { Session } from "./session/session.ts";
