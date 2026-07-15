@@ -5,6 +5,7 @@ const aiSrcIndex = fileURLToPath(new URL("../ai/src/index.ts", import.meta.url))
 const aiSrcCompat = fileURLToPath(new URL("../ai/src/compat.ts", import.meta.url));
 const aiSrcOAuth = fileURLToPath(new URL("../ai/src/oauth.ts", import.meta.url));
 const agentSrcIndex = fileURLToPath(new URL("../agent/src/index.ts", import.meta.url));
+const agentNodeIndex = fileURLToPath(new URL("../agent/src/node.ts", import.meta.url));
 const agentSqliteIndex = fileURLToPath(new URL("../agent/src/harness/session/sqlite/index.ts", import.meta.url));
 const agentSqliteNode = fileURLToPath(new URL("../agent/src/harness/session/sqlite/env/node.ts", import.meta.url));
 const tuiSrcIndex = fileURLToPath(new URL("../tui/src/index.ts", import.meta.url));
@@ -27,6 +28,7 @@ export default defineConfig({
 			{ find: /^@earendil-works\/pi-ai$/, replacement: aiSrcIndex },
 			{ find: /^@earendil-works\/pi-ai\/compat$/, replacement: aiSrcCompat },
 			{ find: /^@earendil-works\/pi-ai\/oauth$/, replacement: aiSrcOAuth },
+			{ find: /^@earendil-works\/pi-agent-core\/node$/, replacement: agentNodeIndex },
 			{ find: /^@earendil-works\/pi-agent-core\/sqlite$/, replacement: agentSqliteIndex },
 			{ find: /^@earendil-works\/pi-agent-core\/sqlite\/env\/node$/, replacement: agentSqliteNode },
 			{ find: /^@earendil-works\/pi-agent-core$/, replacement: agentSrcIndex },
