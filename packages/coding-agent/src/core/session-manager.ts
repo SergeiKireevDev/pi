@@ -186,8 +186,10 @@ export interface SessionInfo {
 	cwd: string;
 	/** User-defined display name from session_info entries. */
 	name?: string;
-	/** Path to the parent session (if this session was forked). */
+	/** Path to the parent JSONL session (legacy compatibility). */
 	parentSessionPath?: string;
+	/** Backend-neutral parent identity used for session families. */
+	parentReference?: SessionReference;
 	created: Date;
 	modified: Date;
 	messageCount: number;
@@ -703,6 +705,9 @@ async function buildSessionInfo(filePath: string): Promise<SessionInfo | null> {
 			cwd,
 			name,
 			parentSessionPath,
+			parentReference: parentSessionPath
+				? { backend: "jsonl", id: parentSessionPath, storagePath: parentSessionPath }
+				: undefined,
 			created: new Date(header.timestamp),
 			modified,
 			messageCount,
