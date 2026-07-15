@@ -165,13 +165,29 @@ export class AgentSessionRuntime {
 	}
 
 	private async teardownCurrent(reason: SessionShutdownEvent["reason"], targetSessionFile?: string): Promise<void> {
-		await emitSessionShutdownEvent(this.session.extensionRunner, {
-			type: "session_shutdown",
-			reason,
-			targetSessionFile,
-		});
-		this.beforeSessionInvalidate?.();
-		this.session.dispose();
+		let shutdownError: unknown;
+		try {
+			await emitSessionShutdownEvent(this.session.extensionRunner, {
+				type: "session_shutdown",
+				reason,
+				targetSessionFile,
+			});
+			this.beforeSessionInvalidate?.();
+		} catch (error) {
+			shutdownError = error;
+		}
+
+		try {
+			await this.session.dispose();
+		} catch (cleanupError) {
+			if (shutdownError !== undefined) {
+				throw new AggregateError([shutdownError, cleanupError], "Session shutdown and storage cleanup failed", {
+					cause: shutdownError,
+				});
+			}
+			throw cleanupError;
+		}
+		if (shutdownError !== undefined) throw shutdownError;
 	}
 
 	private apply(result: CreateAgentSessionRuntimeResult): void {
@@ -388,12 +404,7 @@ export class AgentSessionRuntime {
 	}
 
 	async dispose(): Promise<void> {
-		await emitSessionShutdownEvent(this.session.extensionRunner, {
-			type: "session_shutdown",
-			reason: "quit",
-		});
-		this.beforeSessionInvalidate?.();
-		this.session.dispose();
+		await this.teardownCurrent("quit");
 	}
 }
 
