@@ -6,7 +6,6 @@ import { resolvePath } from "../utils/paths.ts";
 import { AgentSession } from "./agent-session.ts";
 import { formatNoModelsAvailableMessage } from "./auth-guidance.ts";
 import { AuthStorage } from "./auth-storage.ts";
-import { BackendSessionManager } from "./backend-session-manager.ts";
 import { DEFAULT_THINKING_LEVEL } from "./defaults.ts";
 import type { ExtensionRunner, LoadExtensionsResult, SessionStartEvent, ToolDefinition } from "./extensions/index.ts";
 import { convertToLlm } from "./messages.ts";
@@ -19,7 +18,6 @@ import type { ResourceLoader } from "./resource-loader.ts";
 import { DefaultResourceLoader } from "./resource-loader.ts";
 import { getDefaultSessionDir, SessionManager } from "./session-manager.ts";
 import { SettingsManager } from "./settings-manager.ts";
-import { CodingAgentSqliteSessionRepository, SQLITE_SESSIONS_DATABASE } from "./sqlite-session-repository.ts";
 import { time } from "./timings.ts";
 import {
 	createBashTool,
@@ -186,6 +184,8 @@ export async function createAgentSession(options: CreateAgentSessionOptions = {}
 	if (!sessionManager) {
 		const persistentStore = resolvePersistentStore(options.persistentStore);
 		if (persistentStore === "sqlite") {
+			const [{ BackendSessionManager }, { CodingAgentSqliteSessionRepository, SQLITE_SESSIONS_DATABASE }] =
+				await Promise.all([import("./backend-session-manager.ts"), import("./sqlite-session-repository.ts")]);
 			const repository = new CodingAgentSqliteSessionRepository(join(agentDir, SQLITE_SESSIONS_DATABASE));
 			sessionManager = (await BackendSessionManager.hydrate(
 				await repository.create({ cwd }),
